@@ -13,12 +13,10 @@ static const char *err = NULL;
 void vrtld_set_error(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  if (!err) {
-    vsnprintf(errbuf, sizeof(errbuf), fmt, args);
-    err = errbuf;
-    DEBUG_PRINTF("vrtld error: %s\n", err);
-  }
+  vsnprintf(errbuf, sizeof(errbuf), fmt, args);
   va_end(args);
+  if (!err) err = errbuf;
+  DEBUG_PRINTF("vrtld error: %s\n", err);
 }
 
 const char *vrtld_dlerror(void) {
