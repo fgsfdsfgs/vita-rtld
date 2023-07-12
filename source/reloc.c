@@ -48,6 +48,8 @@ static int process_relocs(dso_t *mod, const Elf32_Rel *rels, const size_t num_re
         *ptr += symbase;
         break;
       case R_ARM_ABS32:
+        *ptr += symbase + symval;
+        break;
       case R_ARM_GLOB_DAT:
       case R_ARM_JUMP_SLOT:
         *ptr = symbase + symval;
