@@ -109,13 +109,19 @@ int vrtld_set_main_exports(const vrtld_export_t *exp, const int numexp) {
   // didn't get a custom table, try the user-defined exports table
   if (symtab == NULL) {
     if (&__vrtld_exports && &__vrtld_num_exports && __vrtld_exports) {
+      DEBUG_PRINTF("vrtld_set_main_exports(%p, %d): __vrtld_exports=%p detected (%u)\n", exp, numexp, __vrtld_exports, __vrtld_num_exports);
       if (vrtld_symtab_from_exports(__vrtld_exports, __vrtld_num_exports, &symtab, &strtab, &hashtab) == 0)
         vrtld_dsolist.flags |= MOD_OWN_SYMTAB; // to free it later
     }
   }
 
   // didn't get anything -- bail
-  if (symtab == NULL) return -1;
+  if (symtab == NULL) {
+    DEBUG_PRINTF("vrtld_set_main_exports(%p, %d): failed\n", exp, numexp);
+    return -1;
+  }
+
+  DEBUG_PRINTF("vrtld_set_main_exports(%p, %d): set main DSO table\n", exp, numexp);
 
   vrtld_dsolist.num_dynsym = hashtab[1]; // nchain == number of symbols
   vrtld_dsolist.dynsym = symtab;

@@ -411,6 +411,11 @@ void *vrtld_dlsym(void *__restrict handle, const char *__restrict symname) {
     return NULL;
   }
 
+  // passed in a handle to the main module
+  if (handle == &vrtld_dsolist) {
+    handle = NULL;
+  }
+
   // NULL handle means search in order starting with the main module
   dso_t *mod = handle ? handle : &vrtld_dsolist;
   for (; mod; mod = mod->next) {

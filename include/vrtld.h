@@ -41,6 +41,8 @@ int vrtld_init(const unsigned int flags);
 void vrtld_quit(void);
 /* returns the `flags` value with which library was initialized, or 0 if it wasn't */
 unsigned int vrtld_init_flags(void);
+/* set the aux exports table */
+int vrtld_set_main_exports(const vrtld_export_t *exp, const int numexp);
 
 /* these function mostly the same as the equivalent dlfcn stuff */
 void *vrtld_dlopen(const char *fname, int flags);
