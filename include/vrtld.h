@@ -53,6 +53,15 @@ const char *vrtld_dlerror(void);
 /* reverse lookup symbol name by its address */
 int vrtld_dladdr(void *addr, vrtld_dl_info_t *info);
 
+/* get module handle from module base */
+void *vrtld_get_handle(void *base);
+/* get module base from module handle */
+void *vrtld_get_base(void *handle);
+/* get module size from module handle */
+unsigned int vrtld_get_size(void *handle);
+/* get module's exidx table, if any */
+void *vrtld_get_exidx(void *handle, unsigned int *out_count);
+
 #ifdef VRTLD_LIBDL_COMPAT
 
 /* provide "compatibility layer" with libdl */

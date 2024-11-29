@@ -47,6 +47,9 @@ typedef struct dso {
   int (**fini_array)(void);
   uint32_t num_fini;
 
+  void *exidx;
+  uint32_t num_exidx;
+
   struct dso *next;
   struct dso *prev;
 } dso_t;

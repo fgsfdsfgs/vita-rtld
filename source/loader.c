@@ -165,6 +165,9 @@ static dso_t *dso_load(const char *filename, const char *modname) {
     } else if (phdr[i].p_type == PT_DYNAMIC) {
       // remember the dynamic seg
       mod->dynamic = (Elf32_Dyn *)((Elf32_Addr)mod->base + phdr[i].p_vaddr);
+    } else if (phdr[i].p_type == PT_ARM_EXIDX) {
+      mod->exidx = (void *)((Elf32_Addr)mod->base + phdr[i].p_vaddr);
+      mod->num_exidx = phdr->p_memsz / 8;
     }
   }
 
@@ -314,6 +317,27 @@ static int dso_unload(dso_t *mod) {
   return 0;
 }
 
+static inline int dso_get_addr_info(void *addr, const dso_t *mod, vrtld_dl_info_t *info) {
+  if (addr < mod->base || addr >= mod->base + mod->size)
+    return 0;
+
+  // fill in the symbol info if this is a symbol
+  const Elf32_Sym *sym = vrtld_reverse_lookup_sym(mod, addr);
+  if (sym) {
+    info->dli_saddr = (void *)((uintptr_t)mod->base + sym->st_value);
+    info->dli_sname = mod->dynstrtab + sym->st_name;
+  } else {
+    info->dli_saddr = NULL;
+    info->dli_sname = NULL;
+  }
+
+  // at least fill in the module info
+  info->dli_fname = mod->name;
+  info->dli_fbase = mod->base;
+
+  return 1;
+}
+
 void vrtld_unload_all(void) {
   dso_t *mod = vrtld_dsolist.next;
   vrtld_dsolist.next = NULL;
@@ -450,35 +474,62 @@ int vrtld_dladdr(void *addr, vrtld_dl_info_t *info) {
     return 0;
   }
 
-  // by man description only these two fields need to be NULL
+  // by man description only these two fields need to be set to NULL
   info->dli_saddr = NULL;
   info->dli_sname = NULL;
 
   // ha-ha, time for linear lookup
   // start with the top module after main, since someone's unlikely to be looking for symbol names inside main
-  const Elf32_Sym *sym = NULL;
   const dso_t *mod;
   for (mod = vrtld_dsolist.next; mod; mod = mod->next) {
-    sym = vrtld_reverse_lookup_sym(mod, addr);
-    if (sym) {
-      info->dli_fname = mod->name;
-      info->dli_fbase = mod->base;
-      info->dli_saddr = (void *)((uintptr_t)mod->base + sym->st_value);
-      info->dli_sname = mod->dynstrtab + sym->st_name;
+    if (dso_get_addr_info(addr, mod, info))
       return 1;
-    }
   }
 
   // do main module last
-  mod = &vrtld_dsolist;
-  sym = vrtld_reverse_lookup_sym(mod, addr);
-  if (sym) {
-    info->dli_fname = mod->name;
-    info->dli_fbase = mod->base;
-    info->dli_saddr = (void *)((uintptr_t)mod->base + sym->st_value);
-    info->dli_sname = mod->dynstrtab + sym->st_name;
-    return 1;
+  return dso_get_addr_info(addr, &vrtld_dsolist, info);
+}
+
+void *vrtld_get_handle(void *base) {
+  if (!base) {
+    vrtld_set_error("vrtld_get_handle(): NULL arg");
+    return NULL;
   }
 
-  return 0;
+  dso_t *mod;
+  for (mod = &vrtld_dsolist; mod; mod = mod->next) {
+    if (mod->base == base)
+      return mod;
+  }
+
+  vrtld_set_error("vrtld_get_handle(): %p is not the base of any loaded module", base);
+  return NULL;
+}
+
+void *vrtld_get_base(void *handle) {
+  if (!handle) {
+    vrtld_set_error("vrtld_get_base(): NULL arg");
+    return NULL;
+  }
+  const dso_t *mod = handle;
+  return mod->base;
+}
+
+unsigned int vrtld_get_size(void *handle) {
+  if (!handle) {
+    vrtld_set_error("vrtld_get_size(): NULL arg");
+    return 0;
+  }
+  const dso_t *mod = handle;
+  return mod->size;
+}
+
+void *vrtld_get_exidx(void *handle, unsigned int *out_count) {
+  if (!handle) {
+    vrtld_set_error("vrtld_get_exidx(): NULL arg");
+    return 0;
+  }
+  const dso_t *mod = handle;
+  if (out_count) *out_count = mod->num_exidx;
+  return mod->exidx;
 }
