@@ -1,4 +1,5 @@
 #include <string.h>
+#include <kubridge.h>
 
 #include "common.h"
 #include "vrtld.h"
@@ -65,6 +66,48 @@ static int process_relocs(dso_t *mod, const Elf32_Rel *rels, const size_t num_re
   return num_failed;
 }
 
+static int process_target2_relocs(dso_t *mod, const Elf32_Rel *rels, const size_t num_rels) {
+  uint32_t target2_type = R_ARM_REL32; // vita native
+  if (vrtld_init_flags() & VRTLD_TARGET2_IS_ABS)
+    target2_type = R_ARM_ABS32;
+  else if (vrtld_init_flags() & VRTLD_TARGET2_IS_GOT)
+    target2_type = R_ARM_GOT_PREL;
+
+  if (target2_type == R_ARM_REL32)
+    return 0; // nothing to do
+
+  for (size_t j = 0; j < num_rels; j++) {
+    if (ELF32_R_TYPE(rels[j].r_info) != R_ARM_TARGET2)
+      continue;
+
+    // on the Vita TARGET2 relocs are treated as REL32, so we need to turn these into REL32
+    intptr_t *ptr = (intptr_t *)((uintptr_t)mod->base + rels[j].r_offset);
+    uint8_t *target = NULL;
+    switch (target2_type) {
+      case R_ARM_ABS32:
+        // ptr points to an absolute address, turn it into a relative
+        target = *(uint8_t **)ptr;
+        break;
+      case R_ARM_GOT_PREL:
+        // ptr points to an offset to a GOT slot, which has already been filled in by process_relocs()
+        if (*ptr) {
+          target = *(uint8_t **)((uint8_t *)ptr + *ptr);
+        }
+        break;
+      default:
+        break;
+    }
+
+    if (target) {
+      const intptr_t result = target - (uint8_t *)ptr;
+      // these usually point to rodata, so we need to resort to this to bypass memory protection
+      kuKernelCpuUnrestrictedMemcpy(ptr, &result, sizeof(result));
+    }
+  }
+
+  return 0;
+}
+
 int vrtld_relocate(dso_t *mod, const int ignore_undef, const int imports_only) {
   Elf32_Rel *rel = NULL;
   Elf32_Rel *jmprel = NULL;
@@ -113,6 +156,16 @@ int vrtld_relocate(dso_t *mod, const int ignore_undef, const int imports_only) {
     } else {
       DEBUG_PRINTF("`%s`: DT_JMPREL has unsupported type %08x\n", mod->name, pltrel);
     }
+  }
+
+  if(mod->extab_rel) {
+    // fixup target2 relocs
+    DEBUG_PRINTF("`%s`: processing .rel.ARM.extab@%p count %u\n", mod->name, mod->extab_rel, mod->num_extab_rel);
+    process_target2_relocs(mod, mod->extab_rel, mod->num_extab_rel);
+    // don't need this anymore
+    free(mod->extab_rel);
+    mod->extab_rel = NULL;
+    mod->num_extab_rel = 0;
   }
 
   mod->flags |= MOD_RELOCATED;

@@ -50,6 +50,9 @@ typedef struct dso {
   void *exidx;
   uint32_t num_exidx;
 
+  Elf32_Rel *extab_rel;
+  uint32_t num_extab_rel;
+
   struct dso *next;
   struct dso *prev;
 } dso_t;

@@ -5,8 +5,10 @@ extern "C" {
 #endif
 
 enum vrtld_init_flags {
-  VRTLD_INITIALIZED    = 1,  /* library is operational */
-  VRTLD_NO_SCE_EXPORTS = 2,  /* don't search main module's exports table */
+  VRTLD_INITIALIZED     = 1,  /* library is operational */
+  VRTLD_NO_SCE_EXPORTS  = 2,  /* don't search main module's exports table */
+  VRTLD_TARGET2_IS_GOT  = 32, /* assume TARGET2 relocs are GOT-relative and fix them */
+  VRTLD_TARGET2_IS_ABS  = 64, /* assume TARGET2 relocs are ABS32 and fix them */
 };
 
 enum vrtld_dlopen_flags {

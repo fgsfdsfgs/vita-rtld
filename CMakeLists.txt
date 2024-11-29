@@ -11,7 +11,21 @@ endif()
 
 project(vrtld C)
 
-file(GLOB SRC "${CMAKE_SOURCE_DIR}/source/*.c")
+option(WITH_EXCEPTION_SUPPORT "Build with included exidx handler" ON)
+
+set(SRC
+  source/exports.c
+  source/loader.c
+  source/lookup.c
+  source/reloc.c
+  source/util.c
+  source/vma.c
+  source/vrtld.c
+)
+
+if(WITH_EXCEPTION_SUPPORT)
+  list(APPEND SRC source/exception.c)
+endif()
 
 include_directories("${CMAKE_SOURCE_DIR}/include")
 

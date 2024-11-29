@@ -195,6 +195,15 @@ static dso_t *dso_load(const char *filename, const char *modname) {
     } else if (!strcmp(sh_name, ".fini_array")) {
       mod->fini_array = (void *)((Elf32_Addr)mod->base + shdr[i].sh_addr);
       mod->num_fini = shdr[i].sh_size / sizeof(void *);
+    } else if (!strcmp(sh_name, ".rel.ARM.extab")) {
+      if (vrtld_init_flags() & (VRTLD_TARGET2_IS_GOT | VRTLD_TARGET2_IS_ABS)) {
+        // make a copy of this for later, we'll need to fixup any TARGET2 relocs in there
+        mod->extab_rel = malloc(shdr[i].sh_size);
+        if (mod->extab_rel) {
+          memcpy(mod->extab_rel, (uint8_t *)ehdr + shdr[i].sh_offset, shdr[i].sh_size);
+          mod->num_extab_rel = shdr[i].sh_size / shdr[i].sh_entsize;
+        }
+      }
     } else if (!strcmp(sh_name, ".text")) {
       // useful for gdb
       DEBUG_PRINTF("`%s`: text start = %p\n", modname, mod->base + shdr[i].sh_addr); 
